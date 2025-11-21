@@ -290,8 +290,8 @@ A full list of dependencies and their exact versions is locked in the `uv.lock` 
 
 ## Contributing
 
-(Add this section if you plan to accept contributions)
+OceanAI (MariApps Marine Solutions Private Limited) - Assignment by ```Kanha Khantaal``` 
 
 ## License
 
-(Add this section if you plan to add a specific license)
+MIT — free to use, modify, and deploy.
