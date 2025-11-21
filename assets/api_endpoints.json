@@ -1,0 +1,31 @@
+{
+  "endpoints": {
+    "apply_discount": {
+      "method": "POST",
+      "url": "/api/discount/apply",
+      "payload": {
+        "code": "string",
+        "total": "number"
+      },
+      "valid_codes": {
+        "SAVE10": 0.10
+      }
+    },
+    "submit_order": {
+      "method": "POST",
+      "url": "/api/order/submit",
+      "payload": {
+        "user_details": {
+          "name": "string",
+          "email": "string",
+          "address": "string"
+        },
+        "cart_items": "array",
+        "shipping_method": "string",
+        "payment_method": "string",
+        "discount_applied": "boolean",
+        "final_total": "number"
+      }
+    }
+  }
+}

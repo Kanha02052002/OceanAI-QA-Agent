@@ -1,0 +1,19 @@
+UI/UX Guidelines for Checkout System
+
+1. All form fields must use full-width inputs with rounded corners and soft borders.
+2. Product cards must display the product name, price, and a full-width "Add to Cart" button.
+3. The cart must display each item in a separate light-gray box with rounded corners.
+4. The "Apply" discount button must be styled in teal (#17a2b8) with white text.
+5. Discount messages must follow these color rules:
+   - Green for valid coupon applied.
+   - Red for invalid coupon.
+   - Gray for repeated attempts ("Discount already applied.")
+6. The "Pay Now" button must:
+   - Be green (#28a745)
+   - Stretch full width
+   - Use white text
+   - Have rounded corners
+7. User detail forms must be placed inside a shadowed white card.
+8. Validation errors must appear inside browser-native HTML5 validation bubbles or red text where applicable.
+9. The UI must remain mobile-friendly using flexible widths and stackable layouts.
+10. The Cart and Discount sections must update totals instantly after interactions.
