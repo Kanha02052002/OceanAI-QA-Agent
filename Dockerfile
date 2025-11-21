@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 COPY requirements.txt .
-RUN uv pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 # RUN pip install --no-cache-dir uv
 # COPY uv.lock pyproject.toml 
 # RUN uv pip install --system --no-cache-dir -r uv.lock 
