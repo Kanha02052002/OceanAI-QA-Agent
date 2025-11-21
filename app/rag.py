@@ -7,7 +7,6 @@ import tempfile
 import asyncio
 import re
 from functools import lru_cache
-
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from langchain_text_splitters import CharacterTextSplitter
@@ -17,7 +16,6 @@ from langchain_core.documents import Document as LangChainDocument
 from fastapi import UploadFile, HTTPException
 import fitz
 from bs4 import BeautifulSoup
-
 from .models import TestCase, GenerateScriptRequest
 
 load_dotenv()
@@ -49,13 +47,13 @@ def _get_embedding_model_cached(model_name: str):
 
         from sentence_transformers import SentenceTransformer
         if os.path.exists(model_path):
-             logger.info(f"Loading embedding model from cache: {model_path}")
-             hf_model = SentenceTransformer(model_path)
+            logger.info(f"Loading embedding model from cache: {model_path}")
+            hf_model = SentenceTransformer(model_path)
         else:
-             logger.info(f"Loading embedding model from HuggingFace Hub: {model_name}")
-             hf_model = SentenceTransformer(model_name)
-             logger.info(f"Saving embedding model to cache: {model_path}")
-             hf_model.save(model_path)
+            logger.info(f"Loading embedding model from HuggingFace Hub: {model_name}")
+            hf_model = SentenceTransformer(model_name)
+            logger.info(f"Saving embedding model to cache: {model_path}")
+            hf_model.save(model_path)
 
         from langchain_community.embeddings import HuggingFaceEmbeddings
         langchain_model = HuggingFaceEmbeddings(model_name=model_path)
@@ -89,8 +87,8 @@ def _parse_document(file_path: Path) -> str:
             doc.close()
         elif file_path.suffix.lower() == '.html':
             with open(file_path, 'r', encoding='utf-8') as f:
-                 soup = BeautifulSoup(f.read(), 'html.parser')
-                 content = soup.get_text(separator=' ', strip=True)
+                soup = BeautifulSoup(f.read(), 'html.parser')
+                content = soup.get_text(separator=' ', strip=True)
         else:
             logger.warning(f"Unsupported file type for parsing: {file_path.suffix}")
     except Exception as e:
@@ -132,7 +130,7 @@ async def load_and_ingest_documents(files: List[UploadFile], html_file: UploadFi
                 temp_html_path = Path(temp_html_file.name)
 
             with open(temp_html_path, 'r', encoding='utf-8') as f:
-                 full_html_content = f.read()
+                full_html_content = f.read()
 
             soup = BeautifulSoup(full_html_content, 'html.parser')
             text_content = soup.get_text(separator=' ', strip=True)
@@ -175,7 +173,7 @@ async def load_and_ingest_documents(files: List[UploadFile], html_file: UploadFi
         metadatas = [doc.metadata for doc in filtered_docs]
 
         if embedding_function is None:
-             raise RuntimeError("Embedding function was not initialized correctly before vector store creation.")
+            raise RuntimeError("Embedding function was not initialized correctly before vector store creation.")
 
         vector_store = await loop.run_in_executor(
             None,
@@ -236,7 +234,6 @@ async def retrieve_context(query: str, k: int = 4) -> List[str]:
         raise HTTPException(status_code=500, detail="Error retrieving context from knowledge base.")
 
 async def retrieve_context_with_sources(query: str, k: int = 4) -> tuple[List[str], List[str]]:
-    """Retrieves context chunks and their corresponding source filenames."""
     global vector_store, embedding_function
     if vector_store is None:
         if os.path.exists(FAISS_PERSIST_DIR):
@@ -277,12 +274,9 @@ async def retrieve_context_with_sources(query: str, k: int = 4) -> tuple[List[st
         raise HTTPException(status_code=500, detail="Error retrieving context from knowledge base.")
 
 async def generate_test_cases(query: str) -> List[TestCase]:
-    context_texts, source_files = await retrieve_context_with_sources(query) # Use the new function
+    context_texts, source_files = await retrieve_context_with_sources(query)
     context_str = "\n\n".join(context_texts)
-
-    # Use the retrieved source files to build a more specific context description for the LLM
-    # This might help it understand which documents are relevant.
-    unique_sources = list(set(source_files)) # Get unique sources
+    unique_sources = list(set(source_files))
     sources_str = ", ".join(unique_sources)
 
     prompt = f"""
@@ -306,20 +300,20 @@ async def generate_test_cases(query: str) -> List[TestCase]:
     The response must start with [ and end with ].
     Example format:
     [
-      {{
-        "Test_ID": "TC-001",
-        "Feature": "Discount Code",
-        "Test_Scenario": "Apply a valid discount code 'SAVE15'.",
-        "Expected_Result": "Total price is reduced by 15%.",
-        "Grounded_In": ["product_specs.md"]
-      }},
-      {{
-        "Test_ID": "TC-002",
-        "Feature": "Form Validation",
-        "Test_Scenario": "Submit the user details form with an invalid email address.",
-        "Expected_Result": "An error message 'Invalid email format' is displayed in red.",
-        "Grounded_In": ["ui_ux_guide.txt", "product_specs.md"]
-      }}
+        {{
+            "Test_ID": "TC-001",
+            "Feature": "Discount Code",
+            "Test_Scenario": "Apply a valid discount code 'SAVE15'.",
+            "Expected_Result": "Total price is reduced by 15%.",
+            "Grounded_In": ["product_specs.md"]
+        }},
+        {{
+            "Test_ID": "TC-002",
+            "Feature": "Form Validation",
+            "Test_Scenario": "Submit the user details form with an invalid email address.",
+            "Expected_Result": "An error message 'Invalid email format' is displayed in red.",
+            "Grounded_In": ["ui_ux_guide.txt", "product_specs.md"]
+        }}
     ]
     """
 
@@ -355,22 +349,18 @@ async def generate_test_cases(query: str) -> List[TestCase]:
 
         test_cases_data = parsed_response
         if isinstance(test_cases_data, dict):
-             test_cases_data = test_cases_data.get("test_cases", test_cases_data)
+            test_cases_data = test_cases_data.get("test_cases", test_cases_data)
 
         processed_test_cases = []
         for tc in test_cases_data:
-            # Process Grounded_In if it's a string (as before)
             if isinstance(tc.get("Grounded_In"), str):
                 grounded_in_str = tc["Grounded_In"]
                 grounded_in_list = [item.strip() for item in grounded_in_str.split(",") if item.strip()]
                 tc["Grounded_In"] = grounded_in_list
                 logger.debug(f"Converted Grounded_In from string to list: {grounded_in_list}")
-            # --- NEW LOGIC: Use retrieved sources if LLM returned ["context"] or similar generic term ---
             elif isinstance(tc.get("Grounded_In"), list) and tc["Grounded_In"] == ["context"]:
-                 # In this case, use the unique sources found during retrieval
-                 tc["Grounded_In"] = unique_sources
-                 logger.debug(f"Replaced ['context'] with retrieved sources: {unique_sources}")
-            # Create the TestCase object with the (potentially modified) Grounded_In
+                tc["Grounded_In"] = unique_sources
+                logger.debug(f"Replaced ['context'] with retrieved sources: {unique_sources}")
             processed_tc = TestCase(**tc)
             processed_test_cases.append(processed_tc)
 
@@ -405,12 +395,12 @@ async def generate_selenium_script(request: GenerateScriptRequest) -> str:
         html_content = ""
         for doc in html_docs:
             if doc.metadata.get("source") == "checkout.html" and doc.metadata.get("type") == "html_full":
-                 html_content = doc.page_content
-                 break
+                html_content = doc.page_content
+                break
 
         if not html_content:
-             logger.error("checkout.html content not found in vector store.")
-             raise HTTPException(status_code=500, detail="Target HTML file content not found in knowledge base.")
+            logger.error("checkout.html content not found in vector store.")
+            raise HTTPException(status_code=500, detail="Target HTML file content not found in knowledge base.")
 
         context_texts = await retrieve_context(test_case.Test_Scenario, k=2)
         context_str = "\n\n".join(context_texts)
@@ -423,16 +413,13 @@ async def generate_selenium_script(request: GenerateScriptRequest) -> str:
         <html_structure>
         {html_content}
         </html_structure>
-
         Use the following context (from documentation) which might be relevant:
         <context>
         {context_str}
         </context>
-
         The test case to automate is:
         Test Scenario: {test_case.Test_Scenario}
         Expected Result: {test_case.Expected_Result}
-
         Generate a Python script using Selenium WebDriver that performs the steps described in the 'Test_Scenario'.
         The script should:
         1. Initialize the WebDriver (e.g., Chrome).
