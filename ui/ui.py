@@ -1,9 +1,11 @@
 import streamlit as st
 import requests
 import json
+import pandas as pd
 
 BACKEND_URL = "http://127.0.0.1:8000" 
 
+# --- Streamlit App Setup ---
 st.set_page_config(page_title="Autonomous QA Agent", layout="wide")
 st.title("Autonomous QA Agent")
 st.markdown("*Build your testing brain from documentation.*")
@@ -57,7 +59,6 @@ if st.session_state.kb_built:
 else:
     st.sidebar.warning("Please build the knowledge base first.")
 
-
 if st.session_state.kb_built:
     st.header("2. Generate Test Cases")
     query = st.text_input("Enter your query for test cases (e.g., 'Generate test cases for the discount code feature.')")
@@ -74,8 +75,8 @@ if st.session_state.kb_built:
                 if response.status_code == 200:
                     data = response.json()
                     st.session_state.generated_test_cases = data.get("test_cases", [])
-                    st.session_state.selected_test_case = None 
-                    st.session_state.generated_script = ""
+                    st.session_state.selected_test_case = None
+                    st.session_state.generated_script = "" 
                     st.success(f"Generated {len(st.session_state.generated_test_cases)} test cases!")
                 else:
                     st.error(f"Error from backend: {response.status_code} - {response.text}")
@@ -87,17 +88,17 @@ if st.session_state.kb_built:
 
     if st.session_state.generated_test_cases:
         st.subheader("Generated Test Cases")
-        table_data = []
-        for tc in st.session_state.generated_test_cases:
-            table_data.append({
-                    "ID": tc["Test_ID"],
-                    "Feature": tc["Feature"],
-                    "Scenario": tc["Test_Scenario"],
-                    "Expected Result": tc["Expected_Result"],
-                    "Grounded In": tc["Grounded_In"]
-            })
-        st.table(table_data)
-
+        df = pd.DataFrame([
+            {
+                "ID": tc["Test_ID"],
+                "Feature": tc["Feature"],
+                "Scenario": tc["Test_Scenario"],
+                "Expected Result": tc["Expected_Result"],
+                "Grounded In": ", ".join(tc["Grounded_In"]) 
+            }
+            for tc in st.session_state.generated_test_cases
+        ])
+        st.dataframe(df, use_container_width=True, height=400)
         st.header("3. Generate Selenium Script")
         selected_tc_index = st.selectbox(
             "Select a test case to generate a script for:",
@@ -108,7 +109,7 @@ if st.session_state.kb_built:
         if st.button("Generate Selenium Script"):
             if selected_tc_index is not None:
                 selected_tc = st.session_state.generated_test_cases[selected_tc_index]
-                st.session_state.selected_test_case = selected_tc
+                st.session_state.selected_test_case = selected_tc # Store in session state
 
                 try:
                     with st.spinner("Generating Selenium Script..."):
@@ -131,7 +132,23 @@ if st.session_state.kb_built:
 
         if st.session_state.generated_script:
             st.subheader(f"Selenium Script for '{st.session_state.selected_test_case['Test_ID']}'")
-            st.code(st.session_state.generated_script, language='python')
+            script_content = st.session_state.generated_script.strip()
+            if script_content.startswith("```python"):
+                start_idx = script_content.find("\n") + 1
+                end_idx = script_content.rfind("```")
+                if end_idx > start_idx:
+                    script_content = script_content[start_idx:end_idx].strip()
+                else:
+                    script_content = script_content[start_idx:].strip()
+
+            elif script_content.startswith("```"):
+                start_idx = script_content.find("\n") + 1
+                end_idx = script_content.rfind("```")
+                if end_idx > start_idx:
+                    script_content = script_content[start_idx:end_idx].strip()
+                else:
+                    script_content = script_content[start_idx:].strip()
+            st.code(script_content, language='python')
 
 else:
     st.info("Please build the knowledge base in the sidebar to get started.")
