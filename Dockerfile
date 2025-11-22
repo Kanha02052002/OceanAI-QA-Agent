@@ -5,8 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies required for faiss-cpu and other potential C extensions
-# Update package list and install build tools and libraries
+# Install system dependencies for faiss-cpu
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -33,8 +32,12 @@ RUN mkdir -p ./faiss_index
 # (Optional) Create the directory for model caching
 RUN mkdir -p ./models_cache
 
-# Expose the port the app runs on
-EXPOSE 8000
+# Expose the port the app runs on (Render will use the PORT env var, but this is good practice)
+# Do NOT hardcode 8000 here if relying on env var for uvicorn
+EXPOSE 8000 10000 
 
 # Command to run the application using uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use exec form and read the PORT environment variable
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# This uses ${PORT:-8000}, which means use $PORT if set, otherwise default to 8000
+# Render will set $PORT, so it should use the correct port.
