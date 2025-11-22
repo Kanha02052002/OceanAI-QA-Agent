@@ -3,13 +3,16 @@ import requests
 import json
 import pandas as pd
 
-BACKEND_URL = "http://127.0.0.1:8000" 
+# --- Configuration ---
+# Updated to point to your deployed Render backend
+BACKEND_URL = "https://oceanai-qa-agent-1.onrender.com"
 
 # --- Streamlit App Setup ---
 st.set_page_config(page_title="Autonomous QA Agent", layout="wide")
-st.title("Autonomous QA Agent")
+st.title("🤖 Autonomous QA Agent")
 st.markdown("*Build your testing brain from documentation.*")
 
+# --- Session State Initialization ---
 if "kb_built" not in st.session_state:
     st.session_state.kb_built = False
 if "generated_test_cases" not in st.session_state:
@@ -19,6 +22,7 @@ if "selected_test_case" not in st.session_state:
 if "generated_script" not in st.session_state:
     st.session_state.generated_script = ""
 
+# --- Sidebar: File Uploads and KB Building ---
 st.sidebar.header("1. Build Knowledge Base")
 uploaded_docs = st.sidebar.file_uploader(
     "Upload Support Documents (.md, .txt, .json, .pdf)",
@@ -35,6 +39,7 @@ if st.sidebar.button("Build Knowledge Base", type="primary"):
         st.sidebar.error("Please upload both support documents and the HTML file.")
     else:
         try:
+            # Prepare files for upload
             files = []
             for doc in uploaded_docs:
                 files.append(("documents", (doc.name, doc.getvalue(), doc.type)))
@@ -50,16 +55,19 @@ if st.sidebar.button("Build Knowledge Base", type="primary"):
                 st.sidebar.error(f"Error: {response.status_code} - {response.text}")
 
         except requests.exceptions.ConnectionError:
-            st.sidebar.error("Could not connect to the backend. Is FastAPI running?")
+            st.sidebar.error("Could not connect to the backend. Is the Render service running?")
         except Exception as e:
             st.sidebar.error(f"An error occurred: {e}")
 
 if st.session_state.kb_built:
-    st.sidebar.success("Knowledge Base Built!")
+    st.sidebar.success("✅ Knowledge Base Built!")
 else:
-    st.sidebar.warning("Please build the knowledge base first.")
+    st.sidebar.warning("⚠️ Please build the knowledge base first.")
 
+
+# --- Main UI: Test Case and Script Generation ---
 if st.session_state.kb_built:
+    # --- Section 2: Generate Test Cases ---
     st.header("2. Generate Test Cases")
     query = st.text_input("Enter your query for test cases (e.g., 'Generate test cases for the discount code feature.')")
 
@@ -75,8 +83,8 @@ if st.session_state.kb_built:
                 if response.status_code == 200:
                     data = response.json()
                     st.session_state.generated_test_cases = data.get("test_cases", [])
-                    st.session_state.selected_test_case = None
-                    st.session_state.generated_script = "" 
+                    st.session_state.selected_test_case = None # Reset selection
+                    st.session_state.generated_script = "" # Reset script
                     st.success(f"Generated {len(st.session_state.generated_test_cases)} test cases!")
                 else:
                     st.error(f"Error from backend: {response.status_code} - {response.text}")
@@ -86,19 +94,24 @@ if st.session_state.kb_built:
             except Exception as e:
                 st.error(f"An error occurred: {e}")
 
+    # Display generated test cases if available using st.dataframe
     if st.session_state.generated_test_cases:
         st.subheader("Generated Test Cases")
+        # Create a DataFrame from the test cases
         df = pd.DataFrame([
             {
                 "ID": tc["Test_ID"],
                 "Feature": tc["Feature"],
                 "Scenario": tc["Test_Scenario"],
                 "Expected Result": tc["Expected_Result"],
-                "Grounded In": ", ".join(tc["Grounded_In"]) 
+                "Grounded In": ", ".join(tc["Grounded_In"]) # Join list into a string for display
             }
             for tc in st.session_state.generated_test_cases
         ])
-        st.dataframe(df, use_container_width=True, height=400)
+        # Display the DataFrame
+        st.dataframe(df, use_container_width=True, height=400) # Adjust height as needed
+
+        # --- Section 3: Generate Selenium Script ---
         st.header("3. Generate Selenium Script")
         selected_tc_index = st.selectbox(
             "Select a test case to generate a script for:",
@@ -113,6 +126,7 @@ if st.session_state.kb_built:
 
                 try:
                     with st.spinner("Generating Selenium Script..."):
+                        # Send the *entire* test case object as required by the model
                         payload = {"test_case": selected_tc}
                         response = requests.post(f"{BACKEND_URL}/generate_selenium_script", json=payload)
 
@@ -130,10 +144,29 @@ if st.session_state.kb_built:
             else:
                 st.error("Please select a test case first.")
 
+        # Display generated script if available
         if st.session_state.generated_script:
             st.subheader(f"Selenium Script for '{st.session_state.selected_test_case['Test_ID']}'")
+            # --- CLEAN UP THE SCRIPT BEFORE DISPLAYING ---
+            # Remove common LLM formatting artifacts like ```python ... ```
             script_content = st.session_state.generated_script.strip()
+
+            # Check if the script starts with ```python or similar
             if script_content.startswith("```python"):
+                # Find the end of the opening ```python line
+                start_idx = script_content.find("\n") + 1
+                # Find the end of the closing ``` (if present)
+                end_idx = script_content.rfind("```")
+                if end_idx > start_idx:
+                    # Extract the content between the markers
+                    script_content = script_content[start_idx:end_idx].strip()
+                else:
+                    # If no closing ``` is found, remove only the opening marker
+                    script_content = script_content[start_idx:].strip()
+
+            # Also handle other potential markers
+            elif script_content.startswith("```"):
+                # Handle generic ``` markers
                 start_idx = script_content.find("\n") + 1
                 end_idx = script_content.rfind("```")
                 if end_idx > start_idx:
@@ -141,16 +174,12 @@ if st.session_state.kb_built:
                 else:
                     script_content = script_content[start_idx:].strip()
 
-            elif script_content.startswith("```"):
-                start_idx = script_content.find("\n") + 1
-                end_idx = script_content.rfind("```")
-                if end_idx > start_idx:
-                    script_content = script_content[start_idx:end_idx].strip()
-                else:
-                    script_content = script_content[start_idx:].strip()
-            st.code(script_content, language='python')
+            # Display the cleaned script
+            st.code(script_content, language='python') # Use 'python' for syntax highlighting
 
 else:
     st.info("Please build the knowledge base in the sidebar to get started.")
 
+# --- Footer ---
 st.markdown("---")
+st.caption("Powered by FastAPI, Streamlit, LangChain, FAISS, and OpenRouter.")
